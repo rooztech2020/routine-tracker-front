@@ -1,6 +1,6 @@
 // --- CONFIG ---
 // Replace with your Render Backend URL once deployed
-const API_URL = "http://localhost:5000/api/progress";
+const API_URL = "https://routine-tracker-backend-i8dw.onrender.com/";
 // A unique ID just for you to sync desktop and phone without needing login
 const USER_ID = "my_sync_id_123";
 
