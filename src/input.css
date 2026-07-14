@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .task-card {
+    @apply transition-all duration-200 ease-in-out cursor-pointer hover:shadow-md border border-gray-200 rounded-xl p-4 flex items-start gap-4 bg-white;
+  }
+  .task-card.completed {
+    @apply opacity-60 bg-gray-50;
+  }
+}
