@@ -1,9 +1,6 @@
 // --- CONFIG ---
-// Replace with your Render Backend URL once deployed
-const API_URL =
-  "https://routine-tracker-backend-i8dw.onrender.com/api/progress";
-// A unique ID just for you to sync desktop and phone without needing login
-const USER_ID = "my_sync_id_123";
+// Local storage key for keeping your routine history
+const STORAGE_KEY = "routine_tracker_history";
 
 // --- SCHEDULE DATA ---
 const schedule = [
@@ -103,23 +100,26 @@ const todayDateString = new Date().toISOString().split("T")[0];
 let todayData = {};
 let dbHistory = [];
 
-async function init() {
-  // 1. Fetch data from your backend
+function init() {
+  // 1. Fetch data from local storage
   try {
-    const response = await fetch(`${API_URL}/${USER_ID}`);
-    dbHistory = await response.json();
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    dbHistory = savedData ? JSON.parse(savedData) : [];
   } catch (e) {
-    console.error("DB Connection Failed", e);
+    console.error("Local Storage Reading Failed", e);
+    dbHistory = [];
   }
 
-  // 2. Find today's data in the database response
+  // 2. Find today's data in the stored history
   const todayRecord = dbHistory.find(
     (record) => record.date === todayDateString,
   );
+
   if (todayRecord && todayRecord.tasks) {
     todayData = todayRecord.tasks;
   } else {
-    // Initialize if it doesn't exist
+    // Initialize today's tasks if they don't exist
+    todayData = {};
     schedule.forEach((t) => (todayData[t.id] = false));
   }
 
@@ -127,30 +127,36 @@ async function init() {
   renderHabitTracker();
 }
 
-async function toggleTask(id) {
+function toggleTask(id) {
   todayData[id] = !todayData[id];
-
-  // Optimistic UI update (feels instantly fast)
-  renderTasks();
 
   // Calculate percentage
   const completedCount = Object.values(todayData).filter(Boolean).length;
   const percentage = Math.round((completedCount / schedule.length) * 100);
 
-  // Save to backend
-  await fetch(`${API_URL}/${USER_ID}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      date: todayDateString,
-      tasks: todayData,
-      percentage,
-    }),
-  });
+  // Update or insert today's entry in our history array
+  const recordIndex = dbHistory.findIndex((r) => r.date === todayDateString);
+  const updatedRecord = {
+    date: todayDateString,
+    tasks: todayData,
+    percentage,
+  };
 
-  // Re-fetch to update habit tracker history
-  const response = await fetch(`${API_URL}/${USER_ID}`);
-  dbHistory = await response.json();
+  if (recordIndex !== -1) {
+    dbHistory[recordIndex] = updatedRecord;
+  } else {
+    dbHistory.push(updatedRecord);
+  }
+
+  // Save to local storage
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dbHistory));
+  } catch (e) {
+    console.error("Failed to save to local storage", e);
+  }
+
+  // Instantly update the entire UI
+  renderTasks();
   renderHabitTracker();
 }
 
@@ -207,7 +213,7 @@ function renderHabitTracker() {
     d.setDate(d.getDate() - i);
     const dateStr = d.toISOString().split("T")[0];
 
-    // Find this date in our database history
+    // Find this date in our stored history
     const record = dbHistory.find((r) => r.date === dateStr);
     const dayPercent = record ? record.percentage : 0;
 
